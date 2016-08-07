@@ -37,18 +37,6 @@ define('EXPECTED_CLIENT', "7.3.*");
 // Unlock all event stories? Comment to disable
 define('UNLOCK_ALL_EVENTSCENARIO', true);
 
-// Initial center card. Change if necessary
-/*define('INITIAL_CENTER', [
-	49, 50, 51,
-	52, 53, 54,
-	55, 56, 57
-]);*/
-define('INITIAL_CENTER', [
-	286, 287, 288,
-	289, 290, 291,
-	292, 293, 294
-]);
-
 // List of badwords. Add if necessary
 define('BADWORDS_LIST', [
 ]);
