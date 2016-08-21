@@ -40,7 +40,42 @@ define('UNLOCK_ALL_EVENTSCENARIO', true);
 // List of badwords. Add if necessary
 define('BADWORDS_LIST', [
 ]);
+
+// Regenerate passcode or use existing when issuing passcode. Comment to "use existing passcode" behaviour.
+define('PASSCODE_REGENERATE', true);
+
 /** !! Configuration !! **/ /* End configuration */
+
+/** @@ SIF Error Codes @@ **/
+define('ERROR_CODE_NO_ERROR', 0);       // OK
+define('ERROR_CODE_LIB_ERROR', 1);      // Lib error
+define('ERROR_CODE_LOGIN_INVALID', 407);	// Invalid credentials
+define('ERROR_CODE_NETWORK_ERROR', 501);        // Network error
+define('ERROR_CODE_LOGIN_FAILED', 502); // Login failed
+define('ERROR_CODE_UNAVAILABLE', 503);  // Unavailable
+define('ERROR_CODE_TIMEOUT', 504);      // Server error
+define('ERROR_CODE_GAME_LOGIC_ERROR', 1001);    // Game logic error
+define('ERROR_CODE_DUPLICATE_USER_NAME', 1100); // The name is used by another user.
+define('ERROR_CODE_UNAVAILABLE_WORDS', 1101);   // Unavailable words are contained.
+define('ERROR_CODE_ENERGY_FULL', 1102);
+define('ERROR_CODE_NOT_ENOUGH_LOVECA', 1103);
+define('ERROR_CODE_INCENTIVE_NONE', 1201);      // indentive none
+define('ERROR_CODE_OPEN_OTHERS', 1202); // Open other's incentive
+define('ERROR_ALLIANCE_DUMMY', 1900);   // alliance api failure
+define('ERROR_ALLIANCE_DUMMY2', 1901);  // alliance api failure
+define('ERROR_ALLIANCE_DUMMY3', 1902);  // alliance api failure
+define('ERROR_CODE_SCENARIO_NOT_FOUND', 2300);  // scenario data not found
+define('ERROR_CODE_SUBSCENARIO_NOT_FOUND', 2301);
+define('ERROR_CODE_TEST', 2800);
+define('ERROR_CODE_TEST2', 2801);
+define('ERROR_CODE_LIVE_NOT_FOUND', 3400);
+define('ERROR_CODE_LIVE_NOT_ENOUGH_MAX_ENERGY', 3401);
+define('ERROR_CODE_LIVE_NOT_ENOUGH_CURRENT_ENERGY', 3402);
+define('ERROR_CODE_LIVE_NOT_ENOUGH_LOVECA', 3403);
+define('ERROR_HANDOVER_EXPIRE', 4401);
+define('ERROR_HANDOVER_NONE', 4402);
+define('ERROR_HANDOVER_SELF', 4403);
+/** !! SIF Error Codes !! **/
 
 define("MAIN_INVOKED", true, true);
 
