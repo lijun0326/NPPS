@@ -126,7 +126,7 @@ $HANDLER_SHUTDOWN = function()
 		];
 		
 		if(http_response_code() == 200)
-			http_response_code(403);	// If it's not previously set, set to forbidden.
+			http_response_code(error_get_last() == NULL ? 403 : 500);	// If it's not previously set
 		
 		ob_end_clean();
 		exit(json_encode($output));
@@ -214,7 +214,7 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 		}
 	}
 	
-	if(defined("REQUEST_LOGGING"))
+	if(defined('REQUEST_LOGGING'))
 	{
 		// TODO
 	}
@@ -233,6 +233,11 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				return false;
 			}
 		}
+		elseif(strcasecmp($module, 'login') != 0 || (strcasecmp($action, 'login') != 0 && strcasecmp($action, 'authkey') != 0 && strpos($action, 'start') === false))
+		{
+			echo 'Must be logged in!';
+			return false;
+		}
 		
 		if(strcasecmp($module, "api") == 0)
 		{
@@ -250,17 +255,25 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				if(is_file($modname))
 				{
 					$REQUEST_DATA = $rd;
-					$val = include($modname);
+					$val = NULL; {$val=include($modname);}
 					
-					if($val == false)
+					if($val === false)
 						return false;
 					
-					$RESPONSE_ARRAY["response_data"][] = [
-						"result" => $val[0],
-						"status" => $val[1],
-						"commandNum" => false,
-						"timeStamp" => $UNIX_TIMESTAMP
-					];
+					if(is_integer($val))
+						$RESPONSE_ARRAY["response_data"][] = [
+							"result" => ['error_code' => $val],
+							"status" => 600,
+							"commandNum" => false,
+							"timeStamp" => $UNIX_TIMESTAMP
+						];
+					else
+						$RESPONSE_ARRAY["response_data"][] = [
+							"result" => $val[0],
+							"status" => $val[1],
+							"commandNum" => false,
+							"timeStamp" => $UNIX_TIMESTAMP
+						];
 				}
 				else
 				{
@@ -278,13 +291,21 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 			if(is_file($modname))
 			{
 				$REQUEST_DATA = $request_data;
-				$val = include($modname);
+				$val = NULL; {$val=include($modname);}
 				
-				if($val == false)
+				if($val === false)
 					return false;
 				
-				$RESPONSE_ARRAY["response_data"] = $val[0];
-				$RESPONSE_ARRAY["status_code"] = $val[1];
+				if(is_integer($val))
+				{
+					$RESPONSE_ARRAY["response_data"] = ['error_code' => $val];
+					$RESPONSE_ARRAY["status_code"] = 600;
+				}
+				else
+				{
+					$RESPONSE_ARRAY["response_data"] = $val[0];
+					$RESPONSE_ARRAY["status_code"] = $val[1];
+				}
 				
 				return true;
 			}
