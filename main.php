@@ -77,7 +77,25 @@ define('ERROR_HANDOVER_NONE', 4402);
 define('ERROR_HANDOVER_SELF', 4403);
 /** !! SIF Error Codes !! **/
 
-define("MAIN_INVOKED", true, true);
+define('MAIN_INVOKED', true, true);
+define('X_MESSAGE_CODE', 'liumangtuzi');
+
+/* Hopefully nginx fix. Source: http://www.php.net/manual/en/function.getallheaders.php#84262 */
+if(!function_exists('getallheaders'))
+{
+	function getallheaders(): array
+	{
+		$headers = '';
+		foreach ($_SERVER as $name => $value)
+		{
+			if (substr($name, 0, 5) == 'HTTP_')
+			{
+				$headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+			}
+	   }
+	   return $headers;
+	}
+} 
 
 $MAINTENANCE_MODE = false;
 $REQUEST_HEADERS = array_change_key_case(getallheaders(), CASE_LOWER);
@@ -86,7 +104,6 @@ $RESPONSE_ARRAY = [];
 $DATABASE = NULL;
 $UNIX_TIMESTAMP = time();
 $TEXT_TIMESTAMP = date('Y-m-d H:i:s', $UNIX_TIMESTAMP);
-
 
 set_error_handler(function($errNo, $errStr, $errFile, $errLine)
 {
@@ -109,7 +126,7 @@ $HANDLER_SHUTDOWN = function()
 	
 	if($MAINTENANCE_MODE) exit;	// Don't do anything on maintenance
 	
-	header("Content-Type: application/json; charset=utf-8");
+	header('Content-Type: application/json; charset=utf-8');
 	header(sprintf("Date: %s", gmdate('D, d M Y H:i:s T')));
 	
 	$contents = ob_get_contents();
@@ -131,37 +148,25 @@ $HANDLER_SHUTDOWN = function()
 		ob_end_clean();
 		exit(json_encode($output));
 	}
-	
-	
-	$gzip_out = false;
-	
-	if(isset($REQUEST_HEADERS["accept-encoding"]))
-	{
-		if(strpos($REQUEST_HEADERS["accept-encoding"], "gzip") >= 0)
-		{
-			header("Content-Encoding: gzip");
-			$gzip_out = true;
-		}
-	}
 		
-	header(sprintf("status_code: %d", $RESPONSE_ARRAY["status_code"]));
+	header("status_code: {$RESPONSE_ARRAY["status_code"]}");
 	
 	if(strlen($contents) > 0)
 		$RESPONSE_ARRAY["message"] = $contents;
 	
 	ob_end_clean();
+	ob_start('ob_gzhandler');
 	
 	$output = json_encode($RESPONSE_ARRAY);
 	if(strlen($output) > 2)
 	{
-		header(sprintf("X-Message-Code: %s", hash_hmac("sha1", $output, "liumangtuzi")));
+		header(sprintf("X-Message-Code: %s", hash_hmac('sha1', $output, X_MESSAGE_CODE)));
 		header(sprintf("X-Message-Sign: %s", base64_encode(str_repeat("\x00", 128))));
 		
-		if($gzip_out)
-			echo gzencode($output);
-		else
-			echo $output;
+		echo $output;
 	}
+	
+	ob_end_flush();
 	
 	exit;
 };
@@ -195,7 +200,7 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				return false;
 			}
 			
-			if(strcmp($REQUEST_HEADERS["x-message-code"], hash_hmac("sha1", $_POST['request_data'], 'liumangtuzi')))
+			if(strcmp($REQUEST_HEADERS["x-message-code"], hash_hmac("sha1", $_POST['request_data'], X_MESSAGE_CODE)))
 			{
 				echo "Invalid X-Message-Code";
 				http_response_code(422);
@@ -277,7 +282,7 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				}
 				else
 				{
-					echo "One of the handler not found: $modname";
+					echo "One of the handler not found: {$rd["module"]}/{$rd["action"]}";
 					return false;
 				}
 			}
@@ -310,7 +315,7 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				return true;
 			}
 			
-			echo "Handler not found! $modname", PHP_EOL;
+			echo "Handler not found! $module/$action", PHP_EOL;
 			return false;
 		}
 	}
