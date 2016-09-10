@@ -442,18 +442,18 @@ if(!defined("WEBVIEW"))
 		
 		/* get the module and the action. Use different scope */
 		{
-			$x = explode("/", $_SERVER["REQUEST_URI"]);
+			preg_match('!main.php/(\w+)/?(\w*)!', $_SERVER["REQUEST_URI"], $x);
 			
-			if(isset($x[2]))
-				$MODULE_TARGET = $x[2];
+			if(isset($x[1]))
+				$MODULE_TARGET = $x[1];
 			else
 			{
 				echo "Module needed!";
 				exit;
 			}
 			
-			if(isset($x[3]))
-				$ACTION_TARGET = $x[3];
+			if(isset($x[2]) && strlen($x[2]) > 0)
+				$ACTION_TARGET = $x[2];
 		}
 		
 		if(isset($REQUEST_HEADERS['user-id']) || isset($AUTHORIZE_DATA['user_id']))
