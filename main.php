@@ -153,7 +153,7 @@ $HANDLER_SHUTDOWN = function()
 	header("status_code: {$RESPONSE_ARRAY["status_code"]}");
 	
 	if(strlen($contents) > 0)
-		$RESPONSE_ARRAY["message"] = $contents;
+		$RESPONSE_ARRAY['message'] = $contents;
 	
 	ob_end_clean();
 	ob_start('ob_gzhandler');
@@ -197,14 +197,14 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 			if(!isset($REQUEST_HEADERS["x-message-code"]))
 			{
 				echo "X-Message-Code header required!";
-				http_response_code(422);
+				http_response_code(400);
 				return false;
 			}
 			
 			if(strcmp($REQUEST_HEADERS["x-message-code"], hash_hmac("sha1", $_POST['request_data'], X_MESSAGE_CODE)))
 			{
 				echo "Invalid X-Message-Code";
-				http_response_code(422);
+				http_response_code(400);
 				return false;
 			}
 		}
@@ -227,102 +227,118 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 	
 	require_once('modules/include.php');
 	
-	if(($TOKEN == NULL && strcasecmp($module, 'login') == 0 && strcasecmp($action ?? '', 'authkey') == 0) || token_exist($TOKEN))
+	/* Handler first. A handler doesn't need to have valid token */
+	if(is_string($action) && strcmp($request_data['module'] ?? '', $module) && strcmp($request_data['action'] ?? '', $action))
 	{
-		/* Check if user-id present */
-		if($USER_ID > 0)
-		{
-			$cred = $DATABASE->execute_query('SELECT login_key, login_pwd FROM `logged_in` WHERE token = ?', 's', $TOKEN)[0];
-			if(count($DATABASE->execute_query('SELECT user_id FROM `users` WHERE login_key = ? AND login_pwd = ? AND user_id = ?', 'ssi', $cred[0], $cred[1], $USER_ID)) != 1)
-			{
-				echo 'Invalid login, password, user_id, and/or token!';
-				return false;
-			}
-		}
-		elseif(strcasecmp($module, 'login') != 0 || (strcasecmp($action, 'login') != 0 && strcasecmp($action, 'authkey') != 0 && strpos($action, 'start') === false))
-		{
-			echo 'Must be logged in!';
-			return false;
-		}
+		$modname = "handlers/$module/$action.php";
 		
-		if(strcasecmp($module, "api") == 0)
+		if(is_file($modname))
 		{
-			/* variable to difference between api request or not */
-			define("API_REQUEST", true);
+			$REQUEST_DATA = $request_data;
+			$val = NULL; {$val=include($modname);}
 			
-			$RESPONSE_ARRAY["response_data"] = [];
-			$RESPONSE_ARRAY["status_code"] = 200;
+			if($val === false)
+				return false;
 			
-			/* Call all handler in order */
-			foreach($request_data as $rd)
-			{
-				$modname = "modules/{$rd["module"]}/{$rd["action"]}.php";
-				
-				if(is_file($modname))
-				{
-					$REQUEST_DATA = $rd;
-					$val = NULL; {$val=include($modname);}
-					
-					if($val === false)
-						return false;
-					
-					if(is_integer($val))
-						$RESPONSE_ARRAY["response_data"][] = [
-							"result" => ['error_code' => $val],
-							"status" => 600,
-							"commandNum" => false,
-							"timeStamp" => $UNIX_TIMESTAMP
-						];
-					else
-						$RESPONSE_ARRAY["response_data"][] = [
-							"result" => $val[0],
-							"status" => $val[1],
-							"commandNum" => false,
-							"timeStamp" => $UNIX_TIMESTAMP
-						];
-				}
-				else
-				{
-					echo "One of the handler not found: {$rd["module"]}/{$rd["action"]}";
-					return false;
-				}
-			}
+			$RESPONSE_ARRAY['response_data'] = $val[0];
+			$RESPONSE_ARRAY['status_code'] = $val[1];
 			
 			return true;
 		}
-		else
-		{	
-			$modname = "modules/$module/$action.php";
-				
+	}
+	
+	/* Verify credentials existence */
+	if($TOKEN === NULL || token_exist($TOKEN) == false || $USER_ID == 0)
+	{
+		invalid_credentials:
+		echo 'Invalid login, password, user_id, and/or token!';
+		return false;
+	}
+	else
+	{
+		$cred = npps_query('SELECT login_key, login_pwd FROM `logged_in` WHERE token = ?', 's', $TOKEN)[0];
+		if(count(npps_query("SELECT user_id FROM `users` WHERE login_key = ? AND login_pwd = ? AND user_id = $USER_ID", 'ss', $cred[0], $cred[1])) != 1)
+			goto invalid_credentials;
+	}
+	
+	/* ok now modules */
+	if(strcmp($module, 'api') == 0)
+	{
+		/* Multiple module/action calls */
+		$RESPONSE_ARRAY["response_data"] = [];
+		$RESPONSE_ARRAY["status_code"] = 200;
+		
+		/* Call all handler in order */
+		foreach($request_data as $rd)
+		{
+			$modname = "modules/{$rd["module"]}/{$rd["action"]}.php";
+			
 			if(is_file($modname))
 			{
-				$REQUEST_DATA = $request_data;
+				$REQUEST_DATA = $rd;
 				$val = NULL; {$val=include($modname);}
 				
 				if($val === false)
 					return false;
 				
 				if(is_integer($val))
-				{
-					$RESPONSE_ARRAY["response_data"] = ['error_code' => $val];
-					$RESPONSE_ARRAY["status_code"] = 600;
-				}
+					$RESPONSE_ARRAY["response_data"][] = [
+						"result" => ['error_code' => $val],
+						"status" => 600,
+						"commandNum" => false,
+						"timeStamp" => $UNIX_TIMESTAMP
+					];
 				else
-				{
-					$RESPONSE_ARRAY["response_data"] = $val[0];
-					$RESPONSE_ARRAY["status_code"] = $val[1];
-				}
-				
-				return true;
+					$RESPONSE_ARRAY["response_data"][] = [
+						"result" => $val[0],
+						"status" => $val[1],
+						"commandNum" => false,
+						"timeStamp" => $UNIX_TIMESTAMP
+					];
+			}
+			else
+			{
+				echo "One of the module not found: {$rd['module']}/{$rd['action']}";
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	else if($action !== NULL && isset($request_data['module']) && isset($request_data['action']) &&
+			strcmp($request_data['module'], $module) == 0 && strcmp($request_data['action'], $action) == 0)
+	{
+		/* Single module call in form /main.php/module/action */
+		$modname = "modules/$module/$action.php";
+			
+		if(is_file($modname))
+		{
+			$REQUEST_DATA = $request_data;
+			$val = NULL; {$val=include($modname);}
+			
+			if($val === false)
+				return false;
+			
+			if(is_integer($val))
+			{
+				$RESPONSE_ARRAY["response_data"] = ['error_code' => $val];
+				$RESPONSE_ARRAY["status_code"] = 600;
+			}
+			else
+			{
+				$RESPONSE_ARRAY["response_data"] = $val[0];
+				$RESPONSE_ARRAY["status_code"] = $val[1];
 			}
 			
-			echo "Handler not found! $module/$action", PHP_EOL;
-			return false;
+			return true;
 		}
+		
+		echo "Module not found! $module/$action", PHP_EOL;
+		return false;
 	}
 	else
 	{
-		echo 'Invalid token!';
+		echo 'Invalid module/action';
 		return false;
 	}
 };
@@ -517,5 +533,3 @@ if(!defined("WEBVIEW"))
 
 	main();
 }
-
-?>
