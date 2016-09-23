@@ -186,13 +186,6 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 	{
 		if(defined("XMESSAGECODE_CHECK"))
 		{
-			$request_data = json_decode($_POST['request_data'], true);
-			
-			if($request_data === false)
-			{
-				echo "Invalid JSON data!";
-				return false;
-			}
 			
 			if(!isset($REQUEST_HEADERS["x-message-code"]))
 			{
@@ -208,15 +201,13 @@ $MAIN_SCRIPT_HANDLER = function(string $BUNDLE, int& $USER_ID, $TOKEN, string $O
 				return false;
 			}
 		}
-		else
+		
+		$request_data = json_decode(mb_convert_encoding($_POST['request_data'], 'UTF-8', 'UTF-8'), true);
+		
+		if($request_data == NULL)
 		{
-			$request_data = json_decode($_POST['request_data'], true);
-			
-			if($request_data === false)
-			{
-				echo "Invalid JSON data!";
-				return false;
-			}
+			echo "Invalid JSON data: {$_POST['request_data']}";
+			return false;
 		}
 	}
 	
